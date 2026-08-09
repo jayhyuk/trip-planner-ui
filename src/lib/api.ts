@@ -5,6 +5,10 @@ import type {
   Schedule,
   ScheduleInput,
   ScheduleUpdateInput,
+  TodoComparison,
+  TodoOption,
+  TodoOptionInput,
+  TodoOptionUpdateInput,
   TravelLocation,
   TravelLocationInput,
   Transportation,
@@ -12,6 +16,10 @@ import type {
   Trip,
   TripDay,
   TripDayInput,
+  TripTodo,
+  TripTodoInput,
+  TripTodoUpdateInput,
+  TripTodoWithOptions,
   TripUpdateInput,
 } from "./types";
 
@@ -90,6 +98,36 @@ export const api = {
     }),
   deleteSchedule: (scheduleId: number) =>
     request<void>(`/schedules/${scheduleId}`, { method: "DELETE" }),
+
+  // Trip todos
+  listTodos: (tripKey: string) =>
+    request<TripTodo[]>(`/trips/${encodeURIComponent(tripKey)}/todos`),
+  createTodo: (tripKey: string, input: TripTodoInput) =>
+    request<TripTodo>(`/trips/${encodeURIComponent(tripKey)}/todos`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getTodo: (todoId: number) => request<TripTodoWithOptions>(`/todos/${todoId}`),
+  updateTodo: (todoId: number, input: TripTodoUpdateInput) =>
+    request<TripTodo>(`/todos/${todoId}`, { method: "PUT", body: JSON.stringify(input) }),
+  deleteTodo: (todoId: number) => request<void>(`/todos/${todoId}`, { method: "DELETE" }),
+
+  // Todo options
+  listTodoOptions: (todoId: number) => request<TodoOption[]>(`/todos/${todoId}/options`),
+  addTodoOption: (todoId: number, input: TodoOptionInput) =>
+    request<TodoOption>(`/todos/${todoId}/options`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getTodoComparison: (todoId: number) => request<TodoComparison>(`/todos/${todoId}/compare`),
+  getTodoOption: (optionId: number) => request<TodoOption>(`/todo-options/${optionId}`),
+  updateTodoOption: (optionId: number, input: TodoOptionUpdateInput) =>
+    request<TodoOption>(`/todo-options/${optionId}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  deleteTodoOption: (optionId: number) =>
+    request<void>(`/todo-options/${optionId}`, { method: "DELETE" }),
 };
 
 export type {
@@ -98,6 +136,10 @@ export type {
   Schedule,
   ScheduleInput,
   ScheduleUpdateInput,
+  TodoComparison,
+  TodoOption,
+  TodoOptionInput,
+  TodoOptionUpdateInput,
   TravelLocation,
   TravelLocationInput,
   Transportation,
@@ -105,5 +147,9 @@ export type {
   Trip,
   TripDay,
   TripDayInput,
+  TripTodo,
+  TripTodoInput,
+  TripTodoUpdateInput,
+  TripTodoWithOptions,
   TripUpdateInput,
 };

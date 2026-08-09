@@ -11,7 +11,9 @@ import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import { ApiRequestError, api } from "@/lib/api";
 import { dayCount, formatDateLong, todayISO } from "@/lib/format";
-import type { Trip, TripDay } from "@/lib/types";
+import type { Trip, TripDay, TripTodo } from "@/lib/types";
+
+type Tab = "itinerary" | "todos";
 
 export default function TripDetailPage() {
   const params = useParams<{ tripKey: string }>();
@@ -20,20 +22,25 @@ export default function TripDetailPage() {
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [days, setDays] = useState<TripDay[] | null>(null);
+  const [todos, setTodos] = useState<TripTodo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("itinerary");
 
   const [showEditTrip, setShowEditTrip] = useState(false);
   const [showAddDay, setShowAddDay] = useState(false);
+  const [showAddTodo, setShowAddTodo] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [tripData, daysData] = await Promise.all([
+      const [tripData, daysData, todosData] = await Promise.all([
         api.getTrip(tripKey),
         api.listDays(tripKey),
+        api.listTodos(tripKey),
       ]);
       setTrip(tripData);
       setDays(daysData.slice().sort((a, b) => a.day_date.localeCompare(b.day_date)));
+      setTodos(todosData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load trip");
     }
@@ -61,6 +68,26 @@ export default function TripDetailPage() {
       setDays((prev) => prev?.filter((d) => d.trip_day_id !== dayId) ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete day");
+    }
+  }
+
+  async function onDeleteTodo(todoId: number) {
+    if (!confirm("Delete this todo and its options?")) return;
+    try {
+      await api.deleteTodo(todoId);
+      setTodos((prev) => prev?.filter((t) => t.todo_id !== todoId) ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete todo");
+    }
+  }
+
+  async function onToggleTodoStatus(todo: TripTodo) {
+    const nextStatus = todo.status === "open" ? "close" : "open";
+    try {
+      const updated = await api.updateTodo(todo.todo_id, { status: nextStatus });
+      setTodos((prev) => prev?.map((t) => (t.todo_id === todo.todo_id ? updated : t)) ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update todo");
     }
   }
 
@@ -123,51 +150,141 @@ export default function TripDetailPage() {
           </div>
         )}
 
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Itinerary days</h2>
-          <Button variant="secondary" onClick={() => setShowAddDay(true)}>
-            + Add day
-          </Button>
+        <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1">
+          <button
+            onClick={() => setTab("itinerary")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+              tab === "itinerary" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+            }`}
+          >
+            Itinerary
+          </button>
+          <button
+            onClick={() => setTab("todos")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+              tab === "todos" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+            }`}
+          >
+            To-dos{todos && todos.length > 0 ? ` (${todos.filter((t) => t.status === "open").length})` : ""}
+          </button>
         </div>
 
-        {days === null && <Spinner />}
+        {tab === "itinerary" && (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Itinerary days</h2>
+              <Button variant="secondary" onClick={() => setShowAddDay(true)}>
+                + Add day
+              </Button>
+            </div>
 
-        {days && days.length === 0 && (
-          <EmptyState
-            title="No days yet"
-            description="Add a day to start scheduling locations, transport, and stays."
-            action={<Button onClick={() => setShowAddDay(true)}>+ Add day</Button>}
-          />
+            {days === null && <Spinner />}
+
+            {days && days.length === 0 && (
+              <EmptyState
+                title="No days yet"
+                description="Add a day to start scheduling locations, transport, and stays."
+                action={<Button onClick={() => setShowAddDay(true)}>+ Add day</Button>}
+              />
+            )}
+
+            {days && days.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {days.map((day, idx) => (
+                  <li
+                    key={day.trip_day_id}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <Link
+                      href={`/trips/${encodeURIComponent(tripKey)}/days/${day.trip_day_id}`}
+                      className="flex-1"
+                    >
+                      <p className="text-xs font-medium uppercase tracking-wide text-teal-600">
+                        Day {idx + 1}
+                      </p>
+                      <p className="text-base font-semibold text-slate-900">
+                        {formatDateLong(day.day_date)}
+                      </p>
+                    </Link>
+                    <button
+                      onClick={() => onDeleteDay(day.trip_day_id)}
+                      className="rounded-full p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      aria-label="Delete day"
+                    >
+                      🗑️
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
 
-        {days && days.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {days.map((day, idx) => (
-              <li
-                key={day.trip_day_id}
-                className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <Link
-                  href={`/trips/${encodeURIComponent(tripKey)}/days/${day.trip_day_id}`}
-                  className="flex-1"
-                >
-                  <p className="text-xs font-medium uppercase tracking-wide text-teal-600">
-                    Day {idx + 1}
-                  </p>
-                  <p className="text-base font-semibold text-slate-900">
-                    {formatDateLong(day.day_date)}
-                  </p>
-                </Link>
-                <button
-                  onClick={() => onDeleteDay(day.trip_day_id)}
-                  className="rounded-full p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                  aria-label="Delete day"
-                >
-                  🗑️
-                </button>
-              </li>
-            ))}
-          </ul>
+        {tab === "todos" && (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">To-dos</h2>
+              <Button variant="secondary" onClick={() => setShowAddTodo(true)}>
+                + Add todo
+              </Button>
+            </div>
+
+            {todos === null && <Spinner />}
+
+            {todos && todos.length === 0 && (
+              <EmptyState
+                icon="✅"
+                title="No todos yet"
+                description="Track decisions like choosing a hotel or flight, and compare options with friends."
+                action={<Button onClick={() => setShowAddTodo(true)}>+ Add todo</Button>}
+              />
+            )}
+
+            {todos && todos.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {todos.map((todo) => (
+                  <li
+                    key={todo.todo_id}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <Link
+                      href={`/trips/${encodeURIComponent(tripKey)}/todos/${todo.todo_id}`}
+                      className="flex min-w-0 flex-1 items-center gap-3"
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onToggleTodoStatus(todo);
+                        }}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
+                          todo.status === "close"
+                            ? "border-teal-600 bg-teal-600 text-white"
+                            : "border-slate-300 text-transparent"
+                        }`}
+                        aria-label={todo.status === "close" ? "Mark as open" : "Mark as done"}
+                      >
+                        ✓
+                      </button>
+                      <span
+                        className={`truncate text-base font-semibold ${
+                          todo.status === "close" ? "text-slate-400 line-through" : "text-slate-900"
+                        }`}
+                      >
+                        {todo.todo_name}
+                      </span>
+                    </Link>
+                    <button
+                      onClick={() => onDeleteTodo(todo.todo_id)}
+                      className="rounded-full p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      aria-label="Delete todo"
+                    >
+                      🗑️
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
 
@@ -191,6 +308,16 @@ export default function TripDetailPage() {
             [...(prev ?? []), day].sort((a, b) => a.day_date.localeCompare(b.day_date)),
           );
           setShowAddDay(false);
+        }}
+      />
+
+      <AddTodoModal
+        open={showAddTodo}
+        tripKey={tripKey}
+        onClose={() => setShowAddTodo(false)}
+        onAdded={(todo) => {
+          setTodos((prev) => [...(prev ?? []), todo]);
+          setShowAddTodo(false);
         }}
       />
     </div>
@@ -349,6 +476,69 @@ function AddDayModal({
         {error && <ErrorBanner message={error} />}
         <Button type="submit" loading={submitting} className="w-full">
           Add day
+        </Button>
+      </form>
+    </Modal>
+  );
+}
+
+function AddTodoModal({
+  open,
+  tripKey,
+  onClose,
+  onAdded,
+}: {
+  open: boolean;
+  tripKey: string;
+  onClose: () => void;
+  onAdded: (todo: TripTodo) => void;
+}) {
+  const [todoName, setTodoName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset form fields when modal opens
+      setTodoName("");
+      setError(null);
+    }
+  }, [open]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!todoName.trim()) {
+      setError("Please enter a todo name.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const todo = await api.createTodo(tripKey, { todo_name: todoName.trim() });
+      onAdded(todo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add todo");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal open={open} title="Add a todo" onClose={onClose}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-slate-700">What do you need to decide?</span>
+          <input
+            className="rounded-xl border border-slate-300 px-3 py-2.5 text-base focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200"
+            placeholder="Choose a hotel"
+            value={todoName}
+            onChange={(e) => setTodoName(e.target.value)}
+            required
+          />
+        </label>
+        {error && <ErrorBanner message={error} />}
+        <Button type="submit" loading={submitting} className="w-full">
+          Add todo
         </Button>
       </form>
     </Modal>

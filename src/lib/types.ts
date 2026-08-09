@@ -93,6 +93,64 @@ export interface ScheduleUpdateInput {
   description?: string;
 }
 
+export type TodoStatus = "open" | "close";
+
+export interface TripTodo {
+  todo_id: number;
+  trip_key: string;
+  todo_name: string;
+  status: TodoStatus;
+}
+
+export interface TripTodoInput {
+  todo_name: string;
+  status?: TodoStatus;
+}
+
+export interface TripTodoUpdateInput {
+  todo_name?: string;
+  status?: TodoStatus;
+}
+
+export interface TodoOption {
+  option_id: number;
+  todo_id: number;
+  option_name: string;
+  description?: string | null;
+  price?: number | null;
+  detail_link?: string | null;
+  option_date?: string | null;
+  image_urls: string[];
+}
+
+export interface TripTodoWithOptions extends TripTodo {
+  options: TodoOption[];
+}
+
+export interface TodoOptionInput {
+  option_name: string;
+  description?: string;
+  price?: number;
+  detail_link?: string;
+  option_date?: string;
+  image_urls?: string[];
+}
+
+export interface TodoOptionUpdateInput {
+  option_name?: string;
+  description?: string | null;
+  price?: number | null;
+  detail_link?: string | null;
+  option_date?: string | null;
+  image_urls?: string[];
+}
+
+export interface TodoComparison {
+  todo: TripTodo;
+  columns: string[];
+  options: TodoOption[];
+}
+
 export interface ApiError {
   error: string;
 }
