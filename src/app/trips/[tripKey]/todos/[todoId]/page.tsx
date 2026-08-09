@@ -9,7 +9,7 @@ import Header from "@/components/Header";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import { api } from "@/lib/api";
-import { formatDateLong } from "@/lib/format";
+import { formatDateLong, formatTHB } from "@/lib/format";
 import type {
   TodoOption,
   TodoOptionInput,
@@ -257,7 +257,7 @@ function OptionCard({
             <p className="truncate text-base font-semibold text-slate-900">{option.option_name}</p>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
               {option.price != null && (
-                <span className="font-medium text-teal-700">${option.price.toLocaleString()}</span>
+                <span className="font-medium text-teal-700">{formatTHB(option.price)}</span>
               )}
               {option.option_date && <span>{formatDateLong(option.option_date)}</span>}
             </div>
@@ -317,7 +317,7 @@ function CompareView({ todoId }: { todoId: number }) {
       case "option_name":
         return option.option_name;
       case "price":
-        return option.price != null ? `$${option.price.toLocaleString()}` : "—";
+        return option.price != null ? formatTHB(option.price) : "—";
       case "option_date":
         return option.option_date ? formatDateLong(option.option_date) : "—";
       case "description":
@@ -350,7 +350,7 @@ function CompareView({ todoId }: { todoId: number }) {
 
   const columnLabels: Record<string, string> = {
     option_name: "Option",
-    price: "Price",
+    price: "Price (฿)",
     option_date: "Date",
     description: "Notes",
     detail_link: "Link",
@@ -470,7 +470,7 @@ function AddOptionModal({
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-slate-700">Price</span>
+            <span className="text-sm font-medium text-slate-700">Price (THB)</span>
             <input
               type="number"
               min={0}
@@ -604,7 +604,7 @@ function EditOptionModal({
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-slate-700">Price</span>
+            <span className="text-sm font-medium text-slate-700">Price (THB)</span>
             <input
               type="number"
               min={0}
